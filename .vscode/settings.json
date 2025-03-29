@@ -1,6 +1,7 @@
 {
     "files.associations": {
-        "cstdlib": "cpp"
+        "cstdlib": "cpp",
+        "iosfwd": "cpp"
     },
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "[cpp]": {

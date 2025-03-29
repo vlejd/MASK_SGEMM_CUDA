@@ -72,8 +72,8 @@ int main(int argc, char **argv) {
   cudaEventCreate(&end);
 
   // cuBLAS FLOPs ceiling is reached at 8192
-  std::vector<int> SIZE = {2048, 4096, 1<<13};
-  //std::vector<int> SIZE = {32};
+  std::vector<int> SIZE = {1<<10, 1<<11, 1<<12, 1<<13};
+  //std::vector<int> SIZE = {1024};
 
   // GEMM input parameters, C=α*AB+β*C
   float alpha = 1, beta=0; 
@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
 
       if (!verify_matrix(pi.hC_ref, pi.hC, pi.M * pi.N)) {
         std::cout
-            << "Failed to pass the correctness verification against NVIDIA "
+            << "@@@@ Failed to pass the correctness verification against NVIDIA "
                "cuBLAS."
             << std::endl;
 
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
     long flops = 2 * pi.M * pi.N * pi.K;
     printf(
         "Average elapsed time: (%7.6f) s, performance: (%7.1f) GFLOPS. size: "
-        "(%ld,%ld,%ld).\n",
+        "(%ldX%ldX%ld).\n\n",
         elapsed_time / repeat_times,
         (repeat_times * flops * 1e-9) / elapsed_time, pi.M, pi.K, pi.N);
     fflush(stdout);

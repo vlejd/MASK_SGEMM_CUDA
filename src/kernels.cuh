@@ -16,3 +16,5 @@
 #include "vector_kernels/101_naive.cuh"
 #include "vector_kernels/102_warping.cuh"
 #include "vector_kernels/103_preload.cuh"
+#include "vector_kernels/104_preload2.cuh"
+#include "vector_kernels/105_2D_blocktiling.cuh"

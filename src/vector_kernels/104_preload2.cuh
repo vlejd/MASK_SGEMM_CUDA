@@ -6,17 +6,20 @@
 #include <cuda_runtime.h>
 #include "vector_kernels/vector_kernel_utils.cuh"
 
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
-
 /*
 
 Matrix sizes:
 MxK * KxN = MxN
 
+
+/*
+
+__global__ void vector_preload()
+
 */
 
-__global__ void vector_preload(const int M, const int N, const int K, const float *A,
-                               const float *B, float *C)
+__global__ void vector_preload2(const int M, const int N, const int K, const float *A,
+                                const float *B, float *C)
 {
 
   // number of threads in a block
@@ -27,6 +30,12 @@ __global__ void vector_preload(const int M, const int N, const int K, const floa
 
   // Preload full row of A into the shared memory
   extern __shared__ float As[THREAD_COUNT];
+  extern __shared__ float As2[THREAD_COUNT];
+  
+  float *current_As = As;
+  float *other_As = As2;
+  float *tmp_As;
+  
 
   // if statement is necessary to make things work under tile quantization
 
@@ -38,7 +47,7 @@ __global__ void vector_preload(const int M, const int N, const int K, const floa
     int A_row = block_BK * THREAD_COUNT + threadIdx.x;
     if (A_row < K)
     {
-      As[threadIdx.x] = A[out_M * K + A_row];
+      current_As[threadIdx.x] = A[out_M * K + A_row];
     }
     __syncthreads();
 
@@ -47,13 +56,15 @@ __global__ void vector_preload(const int M, const int N, const int K, const floa
       int iK = block_BK * THREAD_COUNT + iBK;
       if (iK < K && out_N < N)
       {
-        tmp += As[iBK] * B[iK * N + out_N];
+        tmp += current_As[iBK] * B[iK * N + out_N];
       }
     }
-    __syncthreads();
-
+    tmp_As = current_As;
+    current_As = other_As;
+    other_As = tmp_As;
   }
-  if(out_N < N){
+  if (out_N < N)
+  {
     C[out_M * N + out_N] = tmp;
   }
 }
