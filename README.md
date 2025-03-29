@@ -40,3 +40,31 @@ GFLOPs at matrix size 4096x4096:
 1. Profiling via [NVIDIA Nsight Compute](https://developer.nvidia.com/nsight-compute) (ncu): `make profile KERNEL=<kernel number>`
 
 Credit goes to [wangzyon/NVIDIA_SGEMM_PRACTICE](https://github.com/wangzyon/NVIDIA_SGEMM_PRACTICE) for the benchmarking setup.
+
+
+## Sparse implementation
+
+gen problems
+d 0.25, d 0.12
+ - N=1, K=4096, M=4096, fp32 
+ - N=1, K=4096, M=4096, fp16 
+ - N=1, K=4096, M=4096, int8
+ - N=1, K=4096, M=4096, int4
+
+The same for N >1, up to 8?
+
+
+gen problem
+- problem object, basic object
+- C++ data
+- cuda data
+- processing
+- C++ processed data
+- C++ cuda data
+
+gen sparse representation
+run cublas for ref
+run algo
+
+
+

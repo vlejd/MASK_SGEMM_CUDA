@@ -13,7 +13,9 @@ void cudaCheck(cudaError_t error, const char *file,
 void CudaDeviceInfo();    // print CUDA information
 
 void range_init_matrix(float *mat, int N);
-void randomize_matrix(float *mat, int N);
+void randomize_matrix(float *mat, int N, int seed = 0);
+void generate_mask(int *mask, int M, int N, float density, int seed = 0);
+void apply_mask(float *mat, int *mask, int M, int N);
 void zero_init_matrix(float *mat, int N);
 void copy_matrix(const float *src, float *dest, int N);
 void print_matrix(const float *A, int M, int N, std::ofstream &fs);

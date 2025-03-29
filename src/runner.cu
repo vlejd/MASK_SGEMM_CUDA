@@ -51,16 +51,39 @@ void CudaDeviceInfo() {
          props.multiProcessorCount, props.warpSize);
 };
 
-void randomize_matrix(float *mat, int N) {
+void randomize_matrix(float *mat, int N, int seed) {
   // NOTICE: Use gettimeofday instead of srand((unsigned)time(NULL)); the time
   // precision is too low and the same random number is generated.
-  struct timeval time {};
-  gettimeofday(&time, nullptr);
-  srand(time.tv_usec);
+  if(seed != 0) {
+    srand(seed);
+  } else{
+    struct timeval time {};
+    gettimeofday(&time, nullptr);
+    srand(time.tv_usec);
+  }
   for (int i = 0; i < N; i++) {
     float tmp = (float)(rand() % 5) + 0.01 * (rand() % 5);
     tmp = (rand() % 2 == 0) ? tmp : tmp * (-1.);
     mat[i] = tmp;
+  }
+}
+
+void generate_mask(int *mask, int M, int N, float density, int seed) {
+  if(seed != 0) {
+    srand(seed);
+  } else{
+    struct timeval time {};
+    gettimeofday(&time, nullptr);
+    srand(time.tv_usec);
+  }
+  for (int i = 0; i < M * N; i++) {
+    mask[i] = (rand() % 100 < density * 100) ? 1 : 0;
+  }
+}
+
+void apply_mask(float *mat, int *mask, int M, int N) {
+  for (int i = 0; i < M * N; i++) {
+    mat[i] = (mask[i] == 0) ? 0.0 : mat[i];
   }
 }
 
