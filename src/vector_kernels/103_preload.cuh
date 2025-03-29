@@ -26,21 +26,22 @@ __global__ void vector_preload(const int M, const int N, const int K, const floa
 
   // Preload full row of A into the shared memory
   extern __shared__ float As[THREAD_COUNT];
-  
+
   // if statement is necessary to make things work under tile quantization
   if (out_N < N)
   {
     float tmp = 0.0;
-    for ( int block_BK=0; block_BK < CEIL_DIV(K, THREAD_COUNT); block_BK++){
-      
+    for (int block_BK = 0; block_BK < CEIL_DIV(K, THREAD_COUNT); block_BK++)
+    {
+
       // Load A into shared memory
       int A_row = block_BK * THREAD_COUNT + threadIdx.x;
-      if (A_row < K){
+      if (A_row < K)
+      {
         As[threadIdx.x] = A[out_M * K + A_row];
       }
       __syncthreads();
 
-      
       for (int iBK = 0; iBK < THREAD_COUNT; ++iBK)
       {
         int iK = block_BK * THREAD_COUNT + iBK;
