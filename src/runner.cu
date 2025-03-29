@@ -107,23 +107,6 @@ void copy_matrix(const float *src, float *dest, int N) {
     printf("copy failed at %d while there are %d elements in total.\n", i, N);
 }
 
-void print_matrix(const float *A, int M, int N, std::ofstream &fs) {
-  int i;
-  fs << std::setprecision(2)
-     << std::fixed; // Set floating-point precision and fixed notation
-  fs << "[";
-  for (i = 0; i < M * N; i++) {
-    if ((i + 1) % N == 0)
-      fs << std::setw(5) << A[i]; // Set field width and write the value
-    else
-      fs << std::setw(5) << A[i] << ", ";
-    if ((i + 1) % N == 0) {
-      if (i + 1 < M * N)
-        fs << ";\n";
-    }
-  }
-  fs << "]\n";
-}
 
 bool verify_matrix(float *matRef, float *matOut, int N) {
   double diff = 0.0;
