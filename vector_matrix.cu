@@ -6,90 +6,24 @@
 #include <runner.cuh>
 #include <vector>
 
-#define cudaCheck(err) (cudaCheck(err, __FILE__, __LINE__))
+#define cudaCheck(err) (cudaCheckInternal(err, __FILE__, __LINE__))
 
 const std::string errLogFile = "matrixValidationFailure.txt";
 const std::string dbgLogFile = "matrixValidationDebug.txt";
-
-//object that holds the data for matrix multiplication
-// it has array A, B, result C, and their cuda counterparts
-// it also has the dimensions of the matrices
-// it has a function to run the matrix multiplication
-// use prefix h for host and d for device
-
-class Problem_InstanceFP32{
-public:
-  int m, n, k;
-  int seed;
-  float *hA, *hB, *hC, *hC_ref;
-  float *dA, *dB, *dC, *dC_ref;
-  int *hMask;
-  int *dMask;
-  float density;
-
-
-  Problem_InstanceFP32(int m, int n, int k, float density, int seed=0){
-    this->m = m;
-    this->n = n;
-    this->k = k;
-    this->density = density;
-    this->seed = seed;
-
-    hA = (float *)malloc(sizeof(float) * m * k);
-    hB = (float *)malloc(sizeof(float) * k * n);
-    hC = (float *)malloc(sizeof(float) * m * n);
-    hC_ref = (float *)malloc(sizeof(float) * m * n);
-    hMask = (int *)malloc(sizeof(int) * m * n);
-
-    randomize_matrix(hA, m * k, seed);
-    randomize_matrix(hB, k * n, seed);
-    zero_init_matrix(hC, m * n);
-    zero_init_matrix(hC_ref, m * n);
-    generate_mask(hMask, m, n, density, seed);
-    apply_mask(hB, hMask, m, n);
-
-    cudaCheck(cudaMalloc((void **)&dA, sizeof(float) * m * k));
-    cudaCheck(cudaMalloc((void **)&dB, sizeof(float) * k * n));
-    cudaCheck(cudaMalloc((void **)&dC, sizeof(float) * m * n));
-    cudaCheck(cudaMalloc((void **)&dC_ref, sizeof(float) * m * n));
-
-    cudaCheck(cudaMemcpy(dA, hA, sizeof(float) * m * k, cudaMemcpyHostToDevice));
-    cudaCheck(cudaMemcpy(dB, hB, sizeof(float) * k * n, cudaMemcpyHostToDevice));
-    cudaCheck(cudaMemcpy(dC, hC, sizeof(float) * m * n, cudaMemcpyHostToDevice));
-    cudaCheck(cudaMemcpy(dC_ref, hC_ref, sizeof(float) * m * n, cudaMemcpyHostToDevice));
-  }
-
-  void get_result(){
-    cudaCheck(cudaMemcpy(hC, dC, sizeof(float) * m * n, cudaMemcpyDeviceToHost));
-  }
-
-  void get_result_ref(){
-    cudaCheck(cudaMemcpy(hC_ref, dC_ref, sizeof(float) * m * n, cudaMemcpyDeviceToHost));
-  }
-
-  ~Problem_InstanceFP32(){
-    free(hA);
-    free(hB);
-    free(hC);
-    cudaFree(dA);
-    cudaFree(dB);
-    cudaFree(dC);
-  }
-};
 
 void log_matrix_data(const std::string &fileName, const Problem_InstanceFP32 &pi) {
   std::ofstream fs;
   fs.open(fileName);
   fs << "A:\n";
-  print_matrix(pi.hA, pi.m, pi.n, fs);
+  print_matrix(pi.hA, pi.M, pi.N, fs);
   fs << "B:\n";
-  print_matrix(pi.hB, pi.m, pi.n, fs);
+  print_matrix(pi.hB, pi.M, pi.N, fs);
   fs << "Mask:\n";
-  print_matrix(pi.hMask, pi.m, pi.n, fs);
+  print_matrix(pi.hMask, pi.M, pi.N, fs);
   fs << "C:\n";
-  print_matrix(pi.hC, pi.m, pi.n, fs);
+  print_matrix(pi.hC, pi.M, pi.N, fs);
   fs << "Should:\n";
-  print_matrix(pi.hC_ref, pi.m, pi.n, fs);
+  print_matrix(pi.hC_ref, pi.M, pi.N, fs);
 };
 
 
@@ -102,8 +36,10 @@ int main(int argc, char **argv) {
 
   // get kernel number
   int kernel_num = std::stoi(argv[1]);
-  if (kernel_num < 0 || kernel_num > 12) {
-    std::cerr << "Please enter a valid kernel number (0-12)" << std::endl;
+  bool normal_kernel = (kernel_num >= 0 && kernel_num <= 12);
+  bool vector_kernel = (kernel_num >= 101);
+  if (!(normal_kernel || vector_kernel)) {
+    std::cerr << "Please enter a valid kernel number (0-12) or (101-?)" << std::endl;
     exit(EXIT_FAILURE);
   }
 
@@ -148,32 +84,37 @@ int main(int argc, char **argv) {
     //problem instance
     Problem_InstanceFP32 pi(1, size, size, density, 42);
 
-    std::cout << "dimensions(m,n,k) " << pi.m << "," << pi.k << "," << pi.n << ", alpha: " << alpha
+    std::cout << "dimensions(m,n,k) " << pi.M << "," << pi.K << "," << pi.N << ", alpha: " << alpha
               << ", beta: " << beta << std::endl;
     // Verify the correctness of the calculation, and execute it once before the
     // kernel function timing to avoid cold start errors
     if (true) {  // kernel_num != 0
       // run_kernel with problem_instance
-      run_kernel(0, pi.m, pi.n, pi.k, alpha, pi.dA, pi.dB, beta, pi.dC_ref, handle);
-      run_kernel(kernel_num, pi.m, pi.n, pi.k, alpha, pi.dA, pi.dB, beta, pi.dC, handle);
+      run_kernel(0, pi.M, pi.N, pi.K, alpha, pi.dA, pi.dB, beta, pi.dC_ref, handle);
+      if(kernel_num < 100){
+        run_kernel(kernel_num, pi.M, pi.N, pi.K, alpha, pi.dA, pi.dB, beta, pi.dC, handle);
+      } else {
+        run_vector_kernel(kernel_num, pi, alpha, beta);
+      }
+
       cudaCheck(cudaDeviceSynchronize());
       cudaCheck(cudaGetLastError()); // Check for async errors during kernel run
       pi.get_result();
       pi.get_result_ref();
 
-      if (!verify_matrix(pi.hC_ref, pi.hC, pi.m * pi.n)) {
+      if (!verify_matrix(pi.hC_ref, pi.hC, pi.M * pi.N)) {
         std::cout
             << "Failed to pass the correctness verification against NVIDIA "
                "cuBLAS."
             << std::endl;
 
-        if (pi.m <= 128) {
+        if (pi.M <= 128) {
           std::cout << " Logging faulty output into " << errLogFile << "\n";
           log_matrix_data(errLogFile, pi);
         }
         // exit(EXIT_FAILURE);
       } else {
-        if (pi.m <= 128 && true) {
+        if (pi.M <= 128 && true) {
           std::cout << " Logging debug output into " << dbgLogFile << "\n";
           log_matrix_data(dbgLogFile, pi);
         }
@@ -181,23 +122,29 @@ int main(int argc, char **argv) {
     }
 
     cudaEventRecord(beg);
-    for (int j = 0; j < repeat_times; j++) {
-      // We don't reset dC between runs to save time
-      run_kernel(kernel_num, pi.m, pi.n, pi.k, alpha, pi.dA, pi.dB, beta, 
-                pi.dC, handle);
+    if(kernel_num < 100){
+      for (int j = 0; j < repeat_times; j++) {
+        run_kernel(kernel_num, pi.M, pi.N, pi.K, alpha, pi.dA, pi.dB, beta, 
+                  pi.dC, handle);
+      }
+    } else {
+      for (int j = 0; j < repeat_times; j++) {
+        run_vector_kernel(kernel_num, pi, alpha, beta);
+      }
     }
+    
     cudaEventRecord(end);
     cudaEventSynchronize(beg);
     cudaEventSynchronize(end);
     cudaEventElapsedTime(&elapsed_time, beg, end);
     elapsed_time /= 1000.; // Convert to seconds
 
-    long flops = 2 * pi.m * pi.n * pi.k;
+    long flops = 2 * pi.M * pi.N * pi.K;
     printf(
         "Average elapsed time: (%7.6f) s, performance: (%7.1f) GFLOPS. size: "
         "(%ld,%ld,%ld).\n",
         elapsed_time / repeat_times,
-        (repeat_times * flops * 1e-9) / elapsed_time, pi.m, pi.k, pi.n);
+        (repeat_times * flops * 1e-9) / elapsed_time, pi.M, pi.K, pi.N);
     fflush(stdout);
     // make dC and dC_ref equal again (we modified dC while calling our kernel
     // for benchmarking)

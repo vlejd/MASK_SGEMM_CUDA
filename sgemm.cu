@@ -5,8 +5,7 @@
 #include <iostream>
 #include <runner.cuh>
 #include <vector>
-
-#define cudaCheck(err) (cudaCheck(err, __FILE__, __LINE__))
+#define cudaCheck(err) (cudaCheckInternal(err, __FILE__, __LINE__))
 
 const std::string errLogFile = "matrixValidationFailure.txt";
 

@@ -5,6 +5,8 @@
 #include <fstream>
 #include <iomanip>
 
+#define cudaCheck(err) (cudaCheckInternal(err, __FILE__, __LINE__))
+
 float get_sec() {
   struct timeval time;
   gettimeofday(&time, NULL);
@@ -13,7 +15,7 @@ float get_sec() {
 
 float cpu_elapsed_time(float &beg, float &end) { return 1.0e-6 * (end - beg); }
 
-void cudaCheck(cudaError_t error, const char *file, int line) {
+void cudaCheckInternal(cudaError_t error, const char *file, int line) {
   if (error != cudaSuccess) {
     printf("[CUDA ERROR] at file %s:%d:\n%s\n", file, line,
            cudaGetErrorString(error));
@@ -552,4 +554,76 @@ void run_kernel(int kernel_num, int M, int N, int K, float alpha, float *A,
   default:
     throw std::invalid_argument("Unknown kernel number");
   }
+}
+
+  
+Problem_InstanceFP32::Problem_InstanceFP32(int M, int N, int K, float density, int seed){
+    this->M = M;
+    this->N = N;
+    this->K = K;
+    this->density = density;
+    this->seed = seed;
+
+    this->hA = (float *)malloc(sizeof(float) * this->M * this->K);
+    this->hB = (float *)malloc(sizeof(float) * this->K * this->N);
+    this->hC = (float *)malloc(sizeof(float) * this->M * this->N);
+    this->hC_ref = (float *)malloc(sizeof(float) * this->M * this->N);
+    this->hMask = (int *)malloc(sizeof(int) * this->M * this->N);
+
+    randomize_matrix(this->hA, this->M * this->K, this->seed);
+    randomize_matrix(this->hB, this->K * this->N, this->seed);
+    zero_init_matrix(this->hC, this->M * this->N);
+    zero_init_matrix(this->hC_ref, this->M * this->N);
+    generate_mask(this->hMask, this->M, this->N, this->density, this->seed);
+    apply_mask(this->hB, this->hMask, this->M, this->N);
+
+    cudaCheck(cudaMalloc((void **)&this->dA, sizeof(float) * this->M * this->K));
+    cudaCheck(cudaMalloc((void **)&this->dB, sizeof(float) * this->K * this->N));
+    cudaCheck(cudaMalloc((void **)&this->dC, sizeof(float) * this->M * this->N));
+    cudaCheck(cudaMalloc((void **)&this->dC_ref, sizeof(float) * this->M * this->N));
+
+    cudaCheck(cudaMemcpy(this->dA, this->hA, sizeof(float) * this->M * this->K, cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(this->dB, this->hB, sizeof(float) * this->K * this->N, cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(this->dC, this->hC, sizeof(float) * this->M * this->N, cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(this->dC_ref, this->hC_ref, sizeof(float) * this->M * this->N, cudaMemcpyHostToDevice));
+  }
+
+
+void Problem_InstanceFP32::get_result(){
+    cudaCheck(cudaMemcpy(this->hC, this->dC, sizeof(float) * this->M * this->N, cudaMemcpyDeviceToHost));
+  }
+
+void Problem_InstanceFP32::get_result_ref(){
+    cudaCheck(cudaMemcpy(this->hC_ref, this->dC_ref, sizeof(float) * this->M * this->N, cudaMemcpyDeviceToHost));
+  }
+
+Problem_InstanceFP32::~Problem_InstanceFP32(){
+    free(this->hA);
+    free(this->hB);
+    free(this->hC);
+    cudaFree(this->dA);
+    cudaFree(this->dB);
+    cudaFree(this->dC);
+  }
+
+
+void run_vector_sgemm_naive(Problem_InstanceFP32 &pi){
+  dim3 gridDim(CEIL_DIV(pi.M, 32), CEIL_DIV(pi.N, 32));
+  dim3 blockDim(32, 32);
+  vector_sgemm_naive<<<gridDim, blockDim>>>(pi.M, pi.N, pi.K, pi.dA, pi.dB, pi.dC);
+}
+
+void run_vector_kernel(int kernel_num, Problem_InstanceFP32 &pi, float alpha, float beta){
+  if(alpha != 1.0 || beta != 0.0){
+    throw std::invalid_argument("Only alpha=1.0 and beta=0.0 are supported");
+  }
+
+  switch (kernel_num) {
+  case 101:
+    run_vector_sgemm_naive(pi);
+    break;
+  default:
+    throw std::invalid_argument("Unknown kernel number");
+  }
+
 }

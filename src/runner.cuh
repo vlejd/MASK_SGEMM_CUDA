@@ -9,8 +9,9 @@
 #include <unistd.h>
 #include <iomanip>
 #include <iostream>
+#include <problem_instance.cuh>
 
-void cudaCheck(cudaError_t error, const char *file,
+void cudaCheckInternal(cudaError_t error, const char *file,
                int line); // CUDA error check
 void CudaDeviceInfo();    // print CUDA information
 
@@ -43,5 +44,22 @@ bool verify_matrix(float *mat1, float *mat2, int N);
 float get_current_sec();                        // Get the current moment
 float cpu_elapsed_time(float &beg, float &end); // Calculate time difference
 
-void run_kernel(int kernel_num, int m, int n, int k, float alpha, float *A,
+void run_kernel(int kernel_num, int M, int N, int K, float alpha, float *A,
                 float *B, float beta, float *C, cublasHandle_t handle);
+
+class Problem_InstanceFP32 {
+  public:
+    int M, N, K;
+    int seed;
+    float *hA, *hB, *hC, *hC_ref;
+    float *dA, *dB, *dC, *dC_ref;
+    int *hMask;
+    int *dMask;
+    float density;
+    void get_result();
+    void get_result_ref();
+    Problem_InstanceFP32(int M, int N, int K, float density, int seed=0);
+    ~Problem_InstanceFP32();
+};
+
+void run_vector_kernel(int kernel_num, Problem_InstanceFP32 &pi, float alpha, float beta);
