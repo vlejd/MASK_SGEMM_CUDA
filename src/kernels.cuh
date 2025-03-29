@@ -15,3 +15,4 @@
 
 #include "vector_kernels/101_naive.cuh"
 #include "vector_kernels/102_warping.cuh"
+#include "vector_kernels/103_preload.cuh"

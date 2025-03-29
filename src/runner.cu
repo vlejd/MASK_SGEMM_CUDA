@@ -622,6 +622,17 @@ void run_vector_warping(Problem_InstanceFP32 &pi){
   vector_warping<<<gridDim, blockDim>>>(pi.M, pi.N, pi.K, pi.dA, pi.dB, pi.dC);
 }
 
+
+void run_vector_preload(Problem_InstanceFP32 &pi){
+  int WARP_COUNT = 32;
+  int WARP_SIZE = 32;
+  int THREADS_PER_BLOCK = WARP_COUNT * WARP_SIZE;
+  dim3 gridDim(CEIL_DIV(pi.N, THREADS_PER_BLOCK), pi.M);
+  dim3 blockDim(WARP_SIZE * WARP_COUNT);
+  vector_preload<<<gridDim, blockDim>>>(pi.M, pi.N, pi.K, pi.dA, pi.dB, pi.dC);
+}
+
+
 void run_vector_kernel(int kernel_num, Problem_InstanceFP32 &pi, float alpha, float beta){
   if(alpha != 1.0 || beta != 0.0 ){
     throw std::invalid_argument("Only alpha=1.0 and beta=0.0 are supported");
@@ -633,6 +644,9 @@ void run_vector_kernel(int kernel_num, Problem_InstanceFP32 &pi, float alpha, fl
     break;
   case 102:
     run_vector_warping(pi);
+    break;
+  case 103:
+    run_vector_preload(pi);
     break;
   default:
     throw std::invalid_argument("Unknown kernel number");
