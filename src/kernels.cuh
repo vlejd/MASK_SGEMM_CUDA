@@ -14,3 +14,4 @@
 #include "kernels/9_kernel_autotuned.cuh"
 
 #include "vector_kernels/101_naive.cuh"
+#include "vector_kernels/102_warping.cuh"

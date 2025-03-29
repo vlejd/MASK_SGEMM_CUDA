@@ -613,14 +613,26 @@ void run_vector_sgemm_naive(Problem_InstanceFP32 &pi){
   vector_sgemm_naive<<<gridDim, blockDim>>>(pi.M, pi.N, pi.K, pi.dA, pi.dB, pi.dC);
 }
 
+void run_vector_warping(Problem_InstanceFP32 &pi){
+  int WARP_COUNT = 32;
+  int WARP_SIZE = 32;
+  int THREADS_PER_BLOCK = WARP_COUNT * WARP_SIZE;
+  dim3 gridDim(CEIL_DIV(pi.N, WARP_COUNT), pi.M);
+  dim3 blockDim(WARP_SIZE * WARP_COUNT);
+  vector_warping<<<gridDim, blockDim>>>(pi.M, pi.N, pi.K, pi.dA, pi.dB, pi.dC);
+}
+
 void run_vector_kernel(int kernel_num, Problem_InstanceFP32 &pi, float alpha, float beta){
-  if(alpha != 1.0 || beta != 0.0){
+  if(alpha != 1.0 || beta != 0.0 ){
     throw std::invalid_argument("Only alpha=1.0 and beta=0.0 are supported");
   }
 
   switch (kernel_num) {
-  case 101:
+    case 101:
     run_vector_sgemm_naive(pi);
+    break;
+  case 102:
+    run_vector_warping(pi);
     break;
   default:
     throw std::invalid_argument("Unknown kernel number");

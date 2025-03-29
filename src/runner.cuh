@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <iomanip>
 #include <iostream>
-#include <problem_instance.cuh>
+
 
 void cudaCheckInternal(cudaError_t error, const char *file,
                int line); // CUDA error check
