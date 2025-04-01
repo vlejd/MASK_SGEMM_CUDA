@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.19)
 project(NVIDIA_SGEMM_PRACTICE LANGUAGES CXX CUDA)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CUDA_ARCHITECTURES 80)
+set(CMAKE_CUDA_ARCHITECTURES 75)
 find_package(CUDA REQUIRED)
 
 # ensure cuda is available
@@ -10,7 +10,7 @@ include(CheckLanguage)
 check_language(CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CUDA_COMPUTE_CAPABILITY 80)
+set(CUDA_COMPUTE_CAPABILITY 75)
 
 # in debug mode, add debug symbols to device code
 # this disables most optimizations and kills performance
@@ -40,4 +40,11 @@ add_executable(vector_matrix vector_matrix.cu ${SRC})
 set_target_properties(vector_matrix PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})
 target_link_libraries(vector_matrix ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 
+add_executable(deviceQuery deviceQuery.cpp)
+set_target_properties(deviceQuery PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})
+target_link_libraries(deviceQuery ${CUDA_LIBRARIES})
+
+# add_executable(deviceQueryDrv deviceQueryDrv.cpp)
+# set_target_properties(deviceQueryDrv PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})
+# target_link_libraries(deviceQueryDrv ${CUDA_LIBRARIES})
 
