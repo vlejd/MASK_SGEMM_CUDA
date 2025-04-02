@@ -1,3 +1,7 @@
+# Overview
+
+Fork of https://github.com/siboehm/SGEMM_CUDA , adjusted to perform `vector` times `sparse matrix` multiplication.  
+
 # Fast CUDA SGEMM from Scratch
 
 Step-by-step optimization of matrix multiplication, implemented in CUDA.
@@ -5,27 +9,80 @@ For an explanation of each kernel, see [siboehm.com/CUDA-MMM](https://siboehm.co
 
 ## Overview
 
-Running the kernels on a NVIDIA A6000 (Ampere):
+Running the kernels on a NVIDIA A100-PCIE-40GB (Ampere):
 
-![](benchmark_results.png)
-
-GFLOPs at matrix size 4096x4096:
+GFLOPs at dense matrices A: 4096x4096, B:4096x4096.
 <!-- benchmark_results -->
 | Kernel                              |  GFLOPs/s | Performance relative to cuBLAS |
 |:------------------------------------|----------:|:-------------------------------|
-| 1: Naive                            |   `309.0` | 1.3%                           |
-| 2: GMEM Coalescing                  |  `1986.5` | 8.5%                           |
-| 3: SMEM Caching                     |  `2980.3` | 12.8%                          |
-| 4: 1D Blocktiling                   |  `8474.7` | 36.5%                          |
-| 5: 2D Blocktiling                   | `15971.7` | 68.7%                          |
-| 7: Avoid Bank Conflicts (Linearize) | `16213.4` | 69.7%                          |
-| 8: Avoid Bank Conflicts (Offset)    | `16459.2` | 70.8%                          |
-| 11: Double Buffering                | `17278.3` | 74.3%                          |
-| 6: Vectorized Mem Access            | `18237.3` | 78.4%                          |
-| 9: Autotuning                       | `19721.0` | 84.8%                          |
-| 10: Warptiling                      | `21779.3` | 93.7%                          |
-| 0: cuBLAS                           | `23249.6` | 100.0%                         |
+| 1: Naive                            |   `290.7` | 2.0%                           |
+| 2: GMEM Coalescing                  |  `3006.9` | 21.3%                          |
+| 3: SMEM Caching                     |  `4859.7` | 34.4%                          |
+| 4: 1D Blocktiling                   |  `9260.8` | 65.7%                          |
+| 5: 2D Blocktiling                   | `12276.0` | 87.1%                          |
+| 8: Avoid Bank Conflicts (Offset)    | `12728.0` | 90.3%                          |
+| 7: Avoid Bank Conflicts (Linearize) | `12740.6` | 90.4%                          |
+| 9: Autotuning                       | `12844.7` | 91.1%                          |
+| 6: Vectorized Mem Access            | `13033.9` | 92.4%                          |
+| 11: Double Buffering                | `13192.7` | 93.6%                          |
+| 10: Warptiling                      | `13462.2` | 95.5%                          |
+| 0: cuBLAS                           | `14092.0` | 100%                           |
 <!-- benchmark_results -->
+
+
+GFLOPs at dense matrices A: 1x4096, B:4096x4096.
+Other kernels do not run nativelly on this shape.
+<!-- benchmark_results -->
+| Kernel                              |  GFLOPs/s | Performance relative to cuBLAS |
+|:------------------------------------|----------:|:-------------------------------|
+| 1: Naive                            |    `25.5` |                                |
+| 2: GMEM Coalescing                  |    `53.5` |                                |
+| 3: SMEM Caching                     |    `48.9` |                                |
+| 4: 1D Blocktiling                   |    `33.7` |                                |
+| 5: 2D Blocktiling                   |    `25.8` |                                |
+| 0: cuBLAS                           |   `417.3` | 100.0%                         |
+<!-- benchmark_results -->
+
+
+GFLOPs at dense matrices A: 2x4096, B:4096x4096.
+Other kernels do not run nativelly on this shape.
+<!-- benchmark_results -->
+| Kernel                              |  GFLOPs/s | Performance relative to cuBLAS |
+|:------------------------------------|----------:|:-------------------------------|
+| 1: Naive                            |    `51.3` |                                |
+| 2: GMEM Coalescing                  |   `106.5` |                                |
+| 3: SMEM Caching                     |    `97.8` |                                |
+| 4: 1D Blocktiling                   |    `67.5` |                                |
+| 5: 2D Blocktiling                   |    `51.6` |                                |
+| 0: cuBLAS                           |   `454.2` | 100.0%                         |
+
+
+GFLOPs at dense matrices A: 4x4096, B:4096x4096.
+Other kernels do not run nativelly on this shape.
+<!-- benchmark_results -->
+| Kernel                              |  GFLOPs/s | Performance relative to cuBLAS |
+|:------------------------------------|----------:|:-------------------------------|
+| 1: Naive                            |    `75.0` |                                |
+| 2: GMEM Coalescing                  |   `207.8` |                                |
+| 3: SMEM Caching                     |   `195.5` |                                |
+| 4: 1D Blocktiling                   |   `135.0` |                                |
+| 5: 2D Blocktiling                   |   `103.2` |                                |
+| 0: cuBLAS                           |   `932.3` | 100.0%                         |
+
+
+GFLOPs at dense matrices A: 8x4096, B:4096x4096.
+Other kernels do not run nativelly on this shape.
+<!-- benchmark_results -->
+| Kernel                              |  GFLOPs/s | Performance relative to cuBLAS |
+|:------------------------------------|----------:|:-------------------------------|
+| 1: Naive                            |    `89.0` |                                |
+| 2: GMEM Coalescing                  |   `423.6` |                                |
+| 3: SMEM Caching                     |   `391.2` |                                |
+| 4: 1D Blocktiling                   |   `270.0` |                                |
+| 5: 2D Blocktiling                   |   `206.3` |                                |
+| 0: cuBLAS                           |  `1837.3` | 100.0%                         |
+
+
 
 ## Setup
 
@@ -44,27 +101,30 @@ Credit goes to [wangzyon/NVIDIA_SGEMM_PRACTICE](https://github.com/wangzyon/NVID
 
 ## Sparse implementation
 
-gen problems
-d 0.25, d 0.12
+We are interested in sparse matrices instead.
+Interesting densities (1-sparsity) are: 0.5, 0.25, 0.12, 0.06
  - N=1, K=4096, M=4096, fp32 
  - N=1, K=4096, M=4096, fp16 
  - N=1, K=4096, M=4096, int8
  - N=1, K=4096, M=4096, int4
 
-The same for N >1, up to 8?
 
 
-gen problem
-- problem object, basic object
-- C++ data
-- cuda data
-- processing
-- C++ processed data
-- C++ cuda data
 
-gen sparse representation
-run cublas for ref
-run algo
+## TODO list
+
+Create checkboxes
+
+- [x] problem object, basic object
+  - [x] C++ data
+  - [x] cuda data
+  - [x] processing
+  - [x] C++ pocessed data
+  - [x] C++ cuda data
+- [ ] gen sparse representation
+- [X] run cubas for reference
+- [X] run CSR representation for reference
+- [ ] run algo
 
 
 

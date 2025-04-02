@@ -74,6 +74,7 @@ int main(int argc, char **argv) {
   // cuBLAS FLOPs ceiling is reached at 8192
   //std::vector<int> SIZE = {1<<10, 1<<11, 1<<12, 1<<13};
   std::vector<int> SIZE = {1<<12};
+  int M = 1;
 
   // GEMM input parameters, C=α*AB+β*C
   float alpha = 1, beta=0; 
@@ -82,7 +83,7 @@ int main(int argc, char **argv) {
   int repeat_times = 50;
   for (int size : SIZE) {
     //problem instance
-    Problem_InstanceFP32 pi(1, size, size, density, 42);
+    Problem_InstanceFP32 pi(M, size, size, density, 42);
 
     std::cout << "dimensions(m,n,k) " << pi.M << "," << pi.K << "," << pi.N << ", alpha: " << alpha
               << ", beta: " << beta << std::endl;
