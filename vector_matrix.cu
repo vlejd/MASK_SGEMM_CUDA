@@ -72,8 +72,8 @@ int main(int argc, char **argv) {
   cudaEventCreate(&end);
 
   // cuBLAS FLOPs ceiling is reached at 8192
-  std::vector<int> SIZE = {1<<10, 1<<11, 1<<12, 1<<13};
-  //std::vector<int> SIZE = {1024};
+  //std::vector<int> SIZE = {1<<10, 1<<11, 1<<12, 1<<13};
+  std::vector<int> SIZE = {1<<12};
 
   // GEMM input parameters, C=α*AB+β*C
   float alpha = 1, beta=0; 

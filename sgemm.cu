@@ -52,7 +52,8 @@ int main(int argc, char **argv) {
   cudaEventCreate(&end);
 
   // cuBLAS FLOPs ceiling is reached at 8192
-  std::vector<int> SIZE = {128, 256, 512, 1024, 2048, 4096, 1<<13, 1<<14};
+  //std::vector<int> SIZE = {128, 256, 512, 1024, 2048, 4096, 1<<13};
+  std::vector<int> SIZE = {4096};
 
   long m, n, k, max_size;
   max_size = SIZE[SIZE.size() - 1];
