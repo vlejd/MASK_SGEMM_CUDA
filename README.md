@@ -2,6 +2,9 @@
 
 Fork of https://github.com/siboehm/SGEMM_CUDA , adjusted to perform `vector` times `sparse matrix` multiplication.  
 
+Also fork of: https://github.com/Maharshi-Pandya/cudacodes/tree/master/matvec
+
+
 # Fast CUDA SGEMM from Scratch
 
 Step-by-step optimization of matrix multiplication, implemented in CUDA.
@@ -9,7 +12,13 @@ For an explanation of each kernel, see [siboehm.com/CUDA-MMM](https://siboehm.co
 
 ## Overview
 
-Running the kernels on a NVIDIA A100-PCIE-40GB (Ampere):
+Running the kernels on a NVIDIA A100-PCIE-40GB (Ampere).
+
+Theoretical maximum performance:
+- GPU Memory Bandwidth: 1,555GB/s
+- FP32: 19.5 TFLOPS
+
+
 
 GFLOPs at dense matrices A: 4096x4096, B:4096x4096.
 <!-- benchmark_results -->
@@ -40,7 +49,8 @@ Other kernels do not run nativelly on this shape.
 | 3: SMEM Caching                     |    `48.9` |                                |
 | 4: 1D Blocktiling                   |    `33.7` |                                |
 | 5: 2D Blocktiling                   |    `25.8` |                                |
-| 0: cuBLAS                           |   `417.3` | 100.0%                         |
+| 106: vecload + warp + block acc     |   `529.3` |                                |
+| 0: cuBLAS                           |   `483.2` | 100.0%                         |
 <!-- benchmark_results -->
 
 

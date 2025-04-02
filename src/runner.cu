@@ -609,6 +609,19 @@ void run_kernel(int kernel_num, int M, int N, int K, float alpha, float *A,
   }
 }
 
+void transpose(float *src, float *dst, int K, int N)
+{
+  //souce is K*N, dest should be N*K
+  // transpose the matrix
+  for(int iK = 0; iK < K; iK++)
+  {
+    for(int iN = 0; iN < N; iN++)
+    {
+      dst[iN * K + iK] = src[iK * N + iN];
+    }
+  }  
+}
+
 Problem_InstanceFP32::Problem_InstanceFP32(int M, int N, int K, float density, int seed)
 {
   this->M = M;
@@ -619,24 +632,28 @@ Problem_InstanceFP32::Problem_InstanceFP32(int M, int N, int K, float density, i
 
   this->hA = (float *)malloc(sizeof(float) * this->M * this->K);
   this->hB = (float *)malloc(sizeof(float) * this->K * this->N);
+  this->hBt = (float *)malloc(sizeof(float) * this->K * this->N);
   this->hC = (float *)malloc(sizeof(float) * this->M * this->N);
   this->hC_ref = (float *)malloc(sizeof(float) * this->M * this->N);
-  this->hMask = (int *)malloc(sizeof(int) * this->M * this->N);
+  this->hMask = (int *)malloc(sizeof(int) * this->K * this->N);
 
   randomize_matrix(this->hA, this->M * this->K, this->seed);
   randomize_matrix(this->hB, this->K * this->N, this->seed);
   zero_init_matrix(this->hC, this->M * this->N);
   zero_init_matrix(this->hC_ref, this->M * this->N);
-  generate_mask(this->hMask, this->M, this->N, this->density, this->seed);
-  apply_mask(this->hB, this->hMask, this->M, this->N);
+  generate_mask(this->hMask, this->K, this->N, this->density, this->seed);
+  apply_mask(this->hB, this->hMask, this->K, this->N); // THIS is very wrong... 
+  transpose(this->hB, this->hBt, this->K, this->N);
 
   cudaCheck(cudaMalloc((void **)&this->dA, sizeof(float) * this->M * this->K));
   cudaCheck(cudaMalloc((void **)&this->dB, sizeof(float) * this->K * this->N));
+  cudaCheck(cudaMalloc((void **)&this->dBt, sizeof(float) * this->K * this->N));
   cudaCheck(cudaMalloc((void **)&this->dC, sizeof(float) * this->M * this->N));
   cudaCheck(cudaMalloc((void **)&this->dC_ref, sizeof(float) * this->M * this->N));
 
   cudaCheck(cudaMemcpy(this->dA, this->hA, sizeof(float) * this->M * this->K, cudaMemcpyHostToDevice));
   cudaCheck(cudaMemcpy(this->dB, this->hB, sizeof(float) * this->K * this->N, cudaMemcpyHostToDevice));
+  cudaCheck(cudaMemcpy(this->dBt, this->hBt, sizeof(float) * this->K * this->N, cudaMemcpyHostToDevice));
   cudaCheck(cudaMemcpy(this->dC, this->hC, sizeof(float) * this->M * this->N, cudaMemcpyHostToDevice));
   cudaCheck(cudaMemcpy(this->dC_ref, this->hC_ref, sizeof(float) * this->M * this->N, cudaMemcpyHostToDevice));
 }
@@ -655,9 +672,11 @@ Problem_InstanceFP32::~Problem_InstanceFP32()
 {
   free(this->hA);
   free(this->hB);
+  free(this->hBt);
   free(this->hC);
   cudaFree(this->dA);
   cudaFree(this->dB);
+  cudaFree(this->dBt);
   cudaFree(this->dC);
 }
 
@@ -736,6 +755,21 @@ void run_vector_sgemm2DBlocktiling(Problem_InstanceFP32 &pi)
   }
 }
 
+void run_kernel_vectorized_sgmev(Problem_InstanceFP32 &pi) {
+  float* __restrict__ matd = pi.dBt; // TODO transpose
+  float* __restrict__ vecd = pi.dA;
+  float* __restrict__ resd = pi.dC;
+  
+  int NUM_THREADS = 64;
+  int warp_size = 32;
+
+  dim3 block_size(NUM_THREADS);
+  dim3 grid_size(pi.N);
+  size_t shared_mem_size = CEIL_DIV(block_size.x, warp_size) * sizeof(float);
+
+  vectorized_sgemv_kernel<<<grid_size, block_size, shared_mem_size>>>(matd, vecd, resd, pi.N, pi.K);
+}
+
 void run_vector_kernel(int kernel_num, Problem_InstanceFP32 &pi, float alpha, float beta)
 {
   if (alpha != 1.0 || beta != 0.0)
@@ -759,6 +793,9 @@ void run_vector_kernel(int kernel_num, Problem_InstanceFP32 &pi, float alpha, fl
     break;
   case 105:
     run_vector_sgemm2DBlocktiling(pi);
+    break;
+  case 106:
+    run_kernel_vectorized_sgmev(pi);
     break;
   default:
     throw std::invalid_argument("Unknown kernel number");

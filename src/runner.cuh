@@ -27,17 +27,16 @@ void print_matrix(const T *A, int M, int N, std::ofstream &fs)
   fs << std::setprecision(2)
      << std::fixed; // Set floating-point precision and fixed notation
   fs << "[";
-  for (i = 0; i < M * N; i++)
+  for (i = 0; i < M && i < 32; i++)
   {
-    if ((i + 1) % N == 0)
-      fs << std::setw(5) << A[i]; // Set field width and write the value
-    else
-      fs << std::setw(5) << A[i] << ", ";
-    if ((i + 1) % N == 0)
+    for (int j = 0; j < N && j < 32; j++)
     {
-      if (i + 1 < M * N)
-        fs << ";\n";
+      fs << A[i * N + j];
+      if (j != N - 1)
+        fs << ", ";
     }
+    if (i != M - 1)
+      fs << ";\n";
   }
   fs << "]\n";
 }
@@ -54,8 +53,8 @@ class Problem_InstanceFP32
 public:
   int M, N, K;
   int seed;
-  float *hA, *hB, *hC, *hC_ref;
-  float *dA, *dB, *dC, *dC_ref;
+  float *hA, *hB, *hBt, *hC, *hC_ref;
+  float *dA, *dB, *dBt, *dC, *dC_ref;
   int *hMask;
   int *dMask;
   float density;
