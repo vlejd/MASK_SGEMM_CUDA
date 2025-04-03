@@ -50,6 +50,9 @@ Other kernels do not run nativelly on this shape.
 | 4: 1D Blocktiling                   |    `33.7` |                                |
 | 5: 2D Blocktiling                   |    `25.8` |                                |
 | 106: vecload + warp + block acc     |   `529.3` |                                |
+| 107: naive transpose                |    `26.5` |                                |
+| 108: warp coalescing + reduction    |   `155.6` |                                |
+| 109: warp + block coalescing + red  |   `277.3` |                                |
 | 0: cuBLAS                           |   `483.2` | 100.0%                         |
 <!-- benchmark_results -->
 

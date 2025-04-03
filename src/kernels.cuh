@@ -19,3 +19,6 @@
 #include "vector_kernels/104_preload2.cuh"
 #include "vector_kernels/105_2D_blocktiling.cuh"
 #include "vector_kernels/106_vec_mat_vectorized.cuh"
+#include "vector_kernels/107_vec_mat_naive.cuh"
+#include "vector_kernels/108_vec_mat_coalesced_warp_sgmev.cuh"
+#include "vector_kernels/109_vec_mat_coalesced_warp_block.cuh"

@@ -770,6 +770,35 @@ void run_kernel_vectorized_sgmev(Problem_InstanceFP32 &pi) {
   vectorized_sgemv_kernel<<<grid_size, block_size, shared_mem_size>>>(matd, vecd, resd, pi.N, pi.K);
 }
 
+void run_vector_transposed_naive(Problem_InstanceFP32 &pi)
+{
+  dim3 blockDim(32*32);
+  dim3 gridDim(CEIL_DIV(pi.N, blockDim.x));
+  transposed_naive<<<gridDim, blockDim>>>(pi.M, pi.N, pi.K, pi.dA, pi.dBt, pi.dC);
+}
+
+void run_coalesced_warp_sgmev(Problem_InstanceFP32 &pi)
+{
+  dim3 blockDim(32);
+  dim3 gridDim(pi.N);
+  coalesced_warp_sgmev<<<gridDim, blockDim>>>(pi.M, pi.N, pi.K, pi.dA, pi.dBt, pi.dC);
+}
+
+
+//coalesced_warp_sgmev
+void run_coalesced_warp_block(Problem_InstanceFP32 &pi)
+{
+  int NUM_THREADS = 64;
+  int warp_size = 32;
+
+  dim3 blockDim(NUM_THREADS);
+  dim3 gridDim(pi.N);
+  size_t shared_mem_size = CEIL_DIV(blockDim.x, warp_size) * sizeof(float);
+
+  coalesced_warp_block<<<gridDim, blockDim, shared_mem_size>>>(pi.M, pi.N, pi.K, pi.dA, pi.dBt, pi.dC);
+}
+
+
 void run_vector_kernel(int kernel_num, Problem_InstanceFP32 &pi, float alpha, float beta)
 {
   if (alpha != 1.0 || beta != 0.0)
@@ -796,6 +825,15 @@ void run_vector_kernel(int kernel_num, Problem_InstanceFP32 &pi, float alpha, fl
     break;
   case 106:
     run_kernel_vectorized_sgmev(pi);
+    break;
+  case 107:
+    run_vector_sgemm_naive(pi);
+    break;
+  case 108:
+    run_coalesced_warp_sgmev(pi);
+    break;
+  case 109:
+  run_coalesced_warp_block(pi);
     break;
   default:
     throw std::invalid_argument("Unknown kernel number");
