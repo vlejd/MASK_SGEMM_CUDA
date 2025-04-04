@@ -13,6 +13,8 @@
 #include <cuda_runtime.h>
 
 #define cudaCheck(err) (cudaCheckInternal(err, __FILE__, __LINE__))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
+
 
 void cudaCheckInternal(cudaError_t error, const char *file, int line)
 {
