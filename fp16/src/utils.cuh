@@ -98,6 +98,27 @@ void generate_mask(int *mask, int M, int N, float density, int seed)
     }
 }
 
+void apply_mask(__half *mat, int *mask, int M, int N)
+{
+  for (int i = 0; i < M * N; i++)
+  {
+    mat[i] = (mask[i] == 0) ? __half{0} : mat[i];
+  }
+}
+
+void transpose(__half *src, __half *dst, int K, int N)
+{
+  //souce is K*N, dest should be N*K
+  // transpose the matrix
+  for(int iK = 0; iK < K; iK++)
+  {
+    for(int iN = 0; iN < N; iN++)
+    {
+      dst[iN * K + iK] = src[iK * N + iN];
+    }
+  }  
+}
+
 Problem_InstanceFP16::Problem_InstanceFP16(int M, int N, int K, float density, int seed)
 {
     this->M = M;
@@ -118,8 +139,8 @@ Problem_InstanceFP16::Problem_InstanceFP16(int M, int N, int K, float density, i
     zero_init_matrix(this->hC, this->M * this->N);
     zero_init_matrix(this->hC_ref, this->M * this->N);
     generate_mask(this->hMask, this->K, this->N, this->density, this->seed + 2);
-    // apply_mask(this->hB, this->hMask, this->K, this->N);
-    // transpose(this->hB, this->hBt, this->K, this->N);
+    apply_mask(this->hB, this->hMask, this->K, this->N);
+    transpose(this->hB, this->hBt, this->K, this->N);
 
     cudaCheck(cudaMalloc((void **)&this->dA, sizeof(__half) * this->M * this->K));
     cudaCheck(cudaMalloc((void **)&this->dB, sizeof(__half) * this->K * this->N));
@@ -164,7 +185,7 @@ void log_matrix_data(const std::string &fileName, const Problem_InstanceFP16 &pi
     fs << "B:\n";
     print_matrix(pi.hB, pi.K, pi.N, fs);
     fs << "Bt:\n";
-    print_matrix(pi.hBt, pi.K, pi.N, fs);
+    print_matrix(pi.hBt, pi.N, pi.K, fs);
     fs << "Mask:\n";
     print_matrix(pi.hMask, pi.K, pi.N, fs);
     fs << "C:\n";
