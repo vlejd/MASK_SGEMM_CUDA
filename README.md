@@ -4,6 +4,18 @@ Fork of https://github.com/siboehm/SGEMM_CUDA , adjusted to perform `vector` tim
 
 Also fork of: https://github.com/Maharshi-Pandya/cudacodes/tree/master/matvec
 
+# Setup
+
+Installation
+- `module load cuda`
+- `conda env create -f environment.yml`
+
+Build
+- `mkdir build && cd build && cmake .. && cmake --build .`
+
+Run
+- `DEVICE=0 ./vector_matrix <kernel number>`
+
 
 # Fast CUDA SGEMM from Scratch
 
@@ -181,7 +193,7 @@ Create checkboxes
   - [x] C++ cuda data
 - [ ] gen sparse representation
 - [X] run cubas for reference
-- [X] run CSR representation for reference
+- [ ] run CSR representation for reference
 - [ ] run algo
 
 
