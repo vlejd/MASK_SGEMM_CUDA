@@ -13,8 +13,7 @@
 #include <cuda_runtime.h>
 
 #define cudaCheck(err) (cudaCheckInternal(err, __FILE__, __LINE__))
-#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
-
+#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
 
 void cudaCheckInternal(cudaError_t error, const char *file, int line)
 {
@@ -25,47 +24,6 @@ void cudaCheckInternal(cudaError_t error, const char *file, int line)
         exit(EXIT_FAILURE);
     }
 };
-
-const std::string errLogFile = "matrixValidationFailure.txt";
-const std::string dbgLogFile = "matrixValidationDebug.txt";
-
-class Problem_InstanceFP16
-{
-public:
-    int M, N, K;
-    int seed;
-    __half *hA, *hB, *hBt, *hC, *hC_ref;
-    __half *dA, *dB, *dBt, *dC, *dC_ref;
-    int *hMask;
-    int *dMask;
-    float density;
-    void get_result();
-    void get_result_ref();
-    Problem_InstanceFP16(int M, int N, int K, float density, int seed = 0);
-    ~Problem_InstanceFP16();
-};
-
-void Problem_InstanceFP16::get_result()
-{
-    cudaCheck(cudaMemcpy(this->hC, this->dC, sizeof(__half) * this->M * this->N, cudaMemcpyDeviceToHost));
-}
-
-void Problem_InstanceFP16::get_result_ref()
-{
-    cudaCheck(cudaMemcpy(this->hC_ref, this->dC_ref, sizeof(__half) * this->M * this->N, cudaMemcpyDeviceToHost));
-}
-
-Problem_InstanceFP16::~Problem_InstanceFP16()
-{
-    free(this->hA);
-    free(this->hB);
-    free(this->hBt);
-    free(this->hC);
-    cudaFree(this->dA);
-    cudaFree(this->dB);
-    cudaFree(this->dBt);
-    cudaFree(this->dC);
-}
 
 void zero_init_matrix(__half *mat, int N)
 {
@@ -100,24 +58,43 @@ void generate_mask(int *mask, int M, int N, float density, int seed)
 
 void apply_mask(__half *mat, int *mask, int M, int N)
 {
-  for (int i = 0; i < M * N; i++)
-  {
-    mat[i] = (mask[i] == 0) ? __half{0} : mat[i];
-  }
+    for (int i = 0; i < M * N; i++)
+    {
+        mat[i] = (mask[i] == 0) ? __half{0} : mat[i];
+    }
 }
 
 void transpose(__half *src, __half *dst, int K, int N)
 {
-  //souce is K*N, dest should be N*K
-  // transpose the matrix
-  for(int iK = 0; iK < K; iK++)
-  {
-    for(int iN = 0; iN < N; iN++)
+    // souce is K*N, dest should be N*K
+    //  transpose the matrix
+    for (int iK = 0; iK < K; iK++)
     {
-      dst[iN * K + iK] = src[iK * N + iN];
+        for (int iN = 0; iN < N; iN++)
+        {
+            dst[iN * K + iK] = src[iK * N + iN];
+        }
     }
-  }  
 }
+
+const std::string errLogFile = "matrixValidationFailure.txt";
+const std::string dbgLogFile = "matrixValidationDebug.txt";
+
+class Problem_InstanceFP16
+{
+public:
+    int M, N, K;
+    int seed;
+    __half *hA, *hB, *hBt, *hC, *hC_ref;
+    __half *dA, *dB, *dBt, *dC, *dC_ref;
+    int *hMask;
+    int *dMask;
+    float density;
+    void get_result();
+    void get_result_ref();
+    Problem_InstanceFP16(int M, int N, int K, float density, int seed = 0);
+    ~Problem_InstanceFP16();
+};
 
 Problem_InstanceFP16::Problem_InstanceFP16(int M, int N, int K, float density, int seed)
 {
@@ -155,6 +132,27 @@ Problem_InstanceFP16::Problem_InstanceFP16(int M, int N, int K, float density, i
     cudaCheck(cudaMemcpy(this->dC_ref, this->hC_ref, sizeof(__half) * this->M * this->N, cudaMemcpyHostToDevice));
 }
 
+void Problem_InstanceFP16::get_result()
+{
+    cudaCheck(cudaMemcpy(this->hC, this->dC, sizeof(__half) * this->M * this->N, cudaMemcpyDeviceToHost));
+}
+
+void Problem_InstanceFP16::get_result_ref()
+{
+    cudaCheck(cudaMemcpy(this->hC_ref, this->dC_ref, sizeof(__half) * this->M * this->N, cudaMemcpyDeviceToHost));
+}
+
+Problem_InstanceFP16::~Problem_InstanceFP16()
+{
+    free(this->hA);
+    free(this->hB);
+    free(this->hBt);
+    free(this->hC);
+    cudaFree(this->dA);
+    cudaFree(this->dB);
+    cudaFree(this->dBt);
+    cudaFree(this->dC);
+}
 template <typename T>
 void print_matrix(const T *A, int M, int N, std::ofstream &fs)
 {
