@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.19)
 project(NVIDIA_SGEMM_PRACTICE LANGUAGES CXX CUDA)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CUDA_ARCHITECTURES 75)
+set(CMAKE_CUDA_ARCHITECTURES 80)
 find_package(CUDA REQUIRED)
 
 # ensure cuda is available
@@ -10,7 +10,7 @@ include(CheckLanguage)
 check_language(CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CUDA_COMPUTE_CAPABILITY 75)
+set(CUDA_COMPUTE_CAPABILITY 80)
 
 # in debug mode, add debug symbols to device code
 # this disables most optimizations and kills performance
