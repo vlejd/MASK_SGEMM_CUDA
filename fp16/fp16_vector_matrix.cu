@@ -48,18 +48,34 @@ int main(int argc, char **argv)
     // std::vector<int> SIZE = {1<<10, 1<<11, 1<<12, 1<<13};
     // std::vector<int> SIZE = {1 << 12};
     std::vector<int> SIZE = {1 << 12};
-    int M = 1;
 
     // GEMM input parameters, C=α*AB+β*C
 
     float density = 0.25;
     int repeat_times = 50;
+    int num_problems = 5;
+    int M,N,K;
+    Problem_InstanceFP16 *problem_instances[num_problems];
+
     for (int size : SIZE)
     {
         // TODO generate multiple problems and cycle through them.
-        Problem_InstanceFP16 pi(M, size, size, density, 42);
-        //Problem_InstanceFP16 pi(1, 32, 2, density, 42);
+        if(true){
+            M = 1;
+            K = size;
+            N = size;
+        } else {
+            M = 1;
+            K = 32;
+            N = 2;
+        }
 
+        for (int i = 0; i < num_problems; i++)
+        {
+            Problem_InstanceFP16* pi_pointer = new Problem_InstanceFP16(M, N, K, density, 42);
+            problem_instances[i] = pi_pointer;
+        }
+        Problem_InstanceFP16 &pi = *problem_instances[0];
         std::cout << "dimensions(M,K,N) " << pi.M << "," << pi.K << "," << pi.N << std::endl;
         run_kernel_fp16(0, pi, handle, true);
         run_kernel_fp16(kernel_num, pi, handle, false);
@@ -86,6 +102,7 @@ int main(int argc, char **argv)
         cudaEventRecord(beg);
         for (int j = 0; j < repeat_times; j++)
         {
+            Problem_InstanceFP16 &pi = *problem_instances[j%num_problems];
             // TODO cycle the problem instances
             run_kernel_fp16(kernel_num, pi, handle, false);
         }
@@ -103,6 +120,11 @@ int main(int argc, char **argv)
             elapsed_time / repeat_times,
             (repeat_times * flops * 1e-9) / elapsed_time, pi.M, pi.K, pi.N);
         fflush(stdout);
+        for (int i = 0; i < num_problems; i++)
+        {
+            delete problem_instances[i];
+        }
+
     }
     cublasDestroy(handle);
 
