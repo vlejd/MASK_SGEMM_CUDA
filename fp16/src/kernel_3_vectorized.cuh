@@ -25,6 +25,7 @@ __global__ void vectorized_mem_load(__half* __restrict__ matd, __half* __restric
 
   int tid = threadIdx.x;
   int bid = blockIdx.x;
+  int out_row = blockIdx.y;
   if (bid >= N) return;
 
   //int n_float4s = K / 4;
@@ -33,7 +34,7 @@ __global__ void vectorized_mem_load(__half* __restrict__ matd, __half* __restric
   // cast the matrix and vector as float4
   // float4 holds multiple values (x, y, z, w)
   float4* mat_row = reinterpret_cast<float4*>(matd + bid * K);
-  float4* vec = reinterpret_cast<float4*>(vecd);
+  float4* vec = reinterpret_cast<float4*>(out_row*K + vecd);
 
   // each thread calculates its own partial output
   float partial_sum = 0.f;
@@ -55,7 +56,7 @@ __global__ void vectorized_mem_load(__half* __restrict__ matd, __half* __restric
   blockReduceSum(partial_sum, smem, tid, blockDim.x);
   if (tid == 0) {
       float sum = smem[0];
-      resd[bid] = __float2half(sum);
+      resd[out_row * N + bid] = __float2half(sum);
   }
   
 }
@@ -70,7 +71,7 @@ void run_vectorized_mem_load(Problem_InstanceFP16 &pi)
   int warp_size = 32;
 
   dim3 block_size(NUM_THREADS);
-  dim3 grid_size(pi.N);
+  dim3 grid_size(pi.N, pi.M);
   size_t shared_mem_size = CEIL_DIV(block_size.x, warp_size) * sizeof(float);
 
   vectorized_mem_load<<<grid_size, block_size, shared_mem_size>>>(matd, vecd, resd, pi.M, pi.K, pi.N);
