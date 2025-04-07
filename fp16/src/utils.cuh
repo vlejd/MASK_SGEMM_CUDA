@@ -104,7 +104,7 @@ public:
     ~Problem_InstanceFP16();
 };
 
-Problem_InstanceFP16::Problem_InstanceFP16(int M, int N, int K, float density, int seed)
+Problem_InstanceFP16::Problem_InstanceFP16(int M, int K, int N, float density, int seed)
 {
     this->M = M;
     this->N = N;

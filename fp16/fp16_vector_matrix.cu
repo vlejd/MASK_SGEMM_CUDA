@@ -57,10 +57,10 @@ int main(int argc, char **argv)
     for (int size : SIZE)
     {
         // TODO generate multiple problems and cycle through them.
-        //Problem_InstanceFP16 pi(M, size, size, density, 42);
-        Problem_InstanceFP16 pi(1, 32, 2, density, 42);
+        Problem_InstanceFP16 pi(M, size, size, density, 42);
+        //Problem_InstanceFP16 pi(1, 32, 2, density, 42);
 
-        std::cout << "dimensions(m,n,k) " << pi.M << "," << pi.K << "," << pi.N << std::endl;
+        std::cout << "dimensions(M,K,N) " << pi.M << "," << pi.K << "," << pi.N << std::endl;
         run_kernel_fp16(0, pi, handle, true);
         run_kernel_fp16(kernel_num, pi, handle, false);
 
