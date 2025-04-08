@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     // std::vector<int> SIZE = {1 << 12};
     std::vector<int> SIZE = {1 << 12};
 
-    bool debug = false;
+    bool debug = true;
     
     float density = 0.25;
     int repeat_times = 50;

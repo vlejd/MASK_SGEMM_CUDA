@@ -50,7 +50,7 @@ void randomize_matrix(__half *mat, int N, int seed)
     {
         // float tmp = (float)(rand() % 5) + 0.1 * (rand() % 5);
         // tmp = (rand() % 2 == 0) ? tmp : tmp * (-1.);
-        float tmp = (float)(rand() % 4);
+        float tmp = (float)(rand() % 4 + 1);
         mat[i] = __float2half(tmp);
     }
 }
@@ -85,18 +85,60 @@ void transpose(__half *src, __half *dst, int K, int N)
     }
 }
 
+int count_nonzeros(int *mask, int M, int N)
+{
+    int count = 0;
+    for (int i = 0; i < M * N; i++)
+    {
+        if (mask[i] != 0)
+            count++;
+    }
+    return count;
+}
+
+void to_csc(__half *src, int *mask, __half *dst, int *row_indices, int *col_starts, int M, int N)
+{
+    // convert the matrix to csc format
+    // src is K*N, dst is nonzero_count
+    // row_indices is nonzero_count
+    // col_starts is N+1
+    int count = 0;
+    for (int iN = 0; iN < N; iN++)
+    {
+        col_starts[iN] = count;
+        for (int iM = 0; iM < M; iM++)
+        {
+            if (mask[iM * N + iN] != 0)
+            {
+                row_indices[count] = iM;
+                dst[count] = src[iM * N + iN];
+                count++;
+            }
+        }
+    }
+    col_starts[N] = count;
+}
+
 const std::string errLogFile = "matrixValidationFailure.txt";
 const std::string dbgLogFile = "matrixValidationDebug.txt";
 
 class Problem_InstanceFP16
 {
 public:
+
+    // A is MxK
+    // B is KxN
+    // C is MxN
     int M, N, K;
     int seed;
-    __half *hA, *hB, *hBt, *hC, *hC_ref;
-    __half *dA, *dB, *dBt, *dC, *dC_ref;
+    __half *hA, *hB, *hBt, *hC, *hC_ref, *hBcsc;
+    __half *dA, *dB, *dBt, *dC, *dC_ref, *dBcsc;
+    int *hBcsc_col_starts, *hBcsc_rows;
+    int *dBcsc_col_starts, *dBcsc_rows; 
+    int nonzero_count;
     int *hMask;
     int *dMask;
+    // todo transpose mask
     float density;
     void get_result();
     void get_result_ref();
@@ -138,6 +180,23 @@ Problem_InstanceFP16::Problem_InstanceFP16(int M, int K, int N, float density, i
     cudaCheck(cudaMemcpy(this->dBt, this->hBt, sizeof(__half) * this->K * this->N, cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(this->dC, this->hC, sizeof(__half) * this->M * this->N, cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(this->dC_ref, this->hC_ref, sizeof(__half) * this->M * this->N, cudaMemcpyHostToDevice));
+
+    this->nonzero_count = count_nonzeros(this->hMask, this->K, this->N);
+
+    this->hBcsc = (__half *)malloc(sizeof(__half) * this->nonzero_count);
+    this->hBcsc_rows = (int *)malloc(sizeof(int) * this->nonzero_count);
+    this->hBcsc_col_starts = (int *)malloc(sizeof(int) * (N+1));
+
+    to_csc(this->hB, this->hMask, this->hBcsc, this->hBcsc_rows, this->hBcsc_col_starts, this->K, this->N);
+
+    cudaCheck(cudaMalloc((void **)&this->dBcsc, sizeof(__half) * this->nonzero_count));
+    cudaCheck(cudaMalloc((void **)&this->dBcsc_rows, sizeof(int) * this->nonzero_count));
+    cudaCheck(cudaMalloc((void **)&this->dBcsc_col_starts, sizeof(int) * (N+1)));
+
+    cudaCheck(cudaMemcpy(this->dBcsc, this->hBcsc, sizeof(__half) * this->nonzero_count, cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(this->dBcsc_rows, this->hBcsc_rows, sizeof(int) * this->nonzero_count, cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(this->dBcsc_col_starts, this->hBcsc_col_starts, sizeof(int) * (N+1), cudaMemcpyHostToDevice));
+
 }
 
 void Problem_InstanceFP16::get_result()
@@ -182,6 +241,26 @@ void print_matrix(const T *A, int M, int N, std::ofstream &fs)
     fs << "]\n";
 }
 
+void print_int_matrix(const int *A, int M, int N, std::ofstream &fs)
+{
+    int i;
+    fs << std::setprecision(2)
+       << std::fixed; // Set floating-point precision and fixed notation
+    fs << "[";
+    for (i = 0; i < M && i < 32; i++)
+    {
+        for (int j = 0; j < N && j < 32; j++)
+        {
+            fs << A[i * N + j];
+            if (j != N - 1)
+                fs << ", ";
+        }
+        if (i != M - 1)
+            fs << ";\n";
+    }
+    fs << "]\n";
+}
+
 void log_matrix_data(const std::string &fileName, const Problem_InstanceFP16 &pi)
 {
     std::ofstream fs;
@@ -190,6 +269,12 @@ void log_matrix_data(const std::string &fileName, const Problem_InstanceFP16 &pi
     print_matrix(pi.hA, pi.M, pi.K, fs);
     fs << "B:\n";
     print_matrix(pi.hB, pi.K, pi.N, fs);
+    fs << "Bcsc:\n";
+    print_matrix(pi.hBcsc, 1, pi.nonzero_count, fs);
+    fs << "Bcsc_rows:\n";
+    print_int_matrix(pi.hBcsc_rows, 1, pi.nonzero_count, fs);
+    fs << "Bcsc_col_starts:\n";
+    print_int_matrix(pi.hBcsc_col_starts, 1, pi.N + 1, fs);
     fs << "Bt:\n";
     print_matrix(pi.hBt, pi.N, pi.K, fs);
     fs << "Mask:\n";
