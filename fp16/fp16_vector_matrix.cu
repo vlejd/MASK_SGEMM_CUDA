@@ -49,30 +49,34 @@ int main(int argc, char **argv)
     // std::vector<int> SIZE = {1 << 12};
     std::vector<int> SIZE = {1 << 12};
 
-    // GEMM input parameters, C=α*AB+β*C
-
+    bool debug = false;
+    
     float density = 0.25;
     int repeat_times = 50;
     int num_problems = 5;
+    if (debug){
+        repeat_times = 1;
+        num_problems = 1;
+    }
     int M,N,K;
     Problem_InstanceFP16 *problem_instances[num_problems];
 
     for (int size : SIZE)
     {
         // TODO generate multiple problems and cycle through them.
-        if(true){
-            M = 1;
-            K = size;
-            N = size;
-        } else {
+        if(debug){
             M = 1;
             K = 32;
             N = 2;
+        } else {
+            M = 1;
+            K = size;
+            N = size;
         }
 
         for (int i = 0; i < num_problems; i++)
         {
-            Problem_InstanceFP16* pi_pointer = new Problem_InstanceFP16(M, N, K, density, 42);
+            Problem_InstanceFP16* pi_pointer = new Problem_InstanceFP16(M, K, N, density, 42+i);
             problem_instances[i] = pi_pointer;
         }
         Problem_InstanceFP16 &pi = *problem_instances[0];
