@@ -74,7 +74,8 @@ void apply_mask(__half *mat, int *mask, int M, int N)
     }
 }
 
-void transpose(__half *src, __half *dst, int K, int N)
+template <typename T>
+void transpose(T *src, T *dst, int K, int N)
 {
     // souce is K*N, dest should be N*K
     //  transpose the matrix
@@ -121,6 +122,23 @@ void to_csc(__half *src, int *mask, __half *dst, int *row_indices, int *col_star
     col_starts[N] = count;
 }
 
+void pack_rows(int *src, int *dst, int n_rows, int n_cols, int n_packed)
+{
+    for (int i_row = 0; i_row < n_rows; i_row++)
+    {
+        for (int i_col_group = 0; i_col_group < n_cols; i_col_group+=32)
+        {
+            int packed = 0;
+            for (int i_group = 0; i_group < 32 && i_col_group + i_group < n_cols; i_group++)
+            {
+                packed |= (src[i_row * n_cols + i_col_group + i_group] << i_group);
+            } 
+            dst[i_row * n_packed + i_col_group / 32] = packed;
+        }
+    }
+}
+
+
 const std::string errLogFile = "matrixValidationFailure.txt";
 const std::string dbgLogFile = "matrixValidationDebug.txt";
 
@@ -131,15 +149,15 @@ public:
     // A is MxK
     // B is KxN
     // C is MxN
-    int M, N, K;
+    int M, N, K, K_packed;
     int seed;
     __half *hA, *hB, *hBt, *hC, *hC_ref, *hBcsc;
     __half *dA, *dB, *dBt, *dC, *dC_ref, *dBcsc;
     int *hBcsc_col_starts, *hBcsc_rows;
     int *dBcsc_col_starts, *dBcsc_rows; 
     int nonzero_count;
-    int *hMask;
-    int *dMask;
+    int *hMask, *hMask_t, *hPacked_mask_t;
+    int *dMask, *dPacked_mask_t;
     // todo transpose mask
     float density;
     void get_result();
@@ -155,6 +173,7 @@ Problem_InstanceFP16::Problem_InstanceFP16(int M, int K, int N, float density, i
     this->K = K;
     this->density = density;
     this->seed = seed;
+    this->K_packed = CEIL_DIV(this->K, 32);
 
     this->hA = (__half *)malloc(sizeof(__half) * this->M * this->K);
     this->hB = (__half *)malloc(sizeof(__half) * this->K * this->N);
@@ -162,6 +181,8 @@ Problem_InstanceFP16::Problem_InstanceFP16(int M, int K, int N, float density, i
     this->hC = (__half *)malloc(sizeof(__half) * this->M * this->N);
     this->hC_ref = (__half *)malloc(sizeof(__half) * this->M * this->N);
     this->hMask = (int *)malloc(sizeof(int) * this->K * this->N);
+    this->hMask_t = (int *)malloc(sizeof(int) * this->N * this->K);
+    this->hPacked_mask_t = (int *)malloc(sizeof(int) * this->N * this->K_packed);
 
     randomize_matrix(this->hA, this->M * this->K, this->seed);
     randomize_matrix(this->hB, this->K * this->N, this->seed + 1);
@@ -170,6 +191,8 @@ Problem_InstanceFP16::Problem_InstanceFP16(int M, int K, int N, float density, i
     generate_mask(this->hMask, this->K, this->N, this->density, this->seed + 2);
     apply_mask(this->hB, this->hMask, this->K, this->N);
     transpose(this->hB, this->hBt, this->K, this->N);
+    transpose(this->hMask, this->hMask_t, this->K, this->N);
+    pack_rows(this->hMask_t, this->hPacked_mask_t, this->N, this->K, this->K_packed);
 
     cudaCheck(cudaMalloc((void **)&this->dA, sizeof(__half) * this->M * this->K));
     cudaCheck(cudaMalloc((void **)&this->dB, sizeof(__half) * this->K * this->N));
@@ -195,11 +218,13 @@ Problem_InstanceFP16::Problem_InstanceFP16(int M, int K, int N, float density, i
     cudaCheck(cudaMalloc((void **)&this->dBcsc_rows, sizeof(int) * this->nonzero_count));
     cudaCheck(cudaMalloc((void **)&this->dBcsc_col_starts, sizeof(int) * (N+1)));
     cudaCheck(cudaMalloc((void **)&this->dMask, sizeof(int) * this->K* this->N));
+    cudaCheck(cudaMalloc((void **)&this->dPacked_mask_t, sizeof(int) * this->N * this->K_packed));   
     
     cudaCheck(cudaMemcpy(this->dBcsc, this->hBcsc, sizeof(__half) * this->nonzero_count, cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(this->dBcsc_rows, this->hBcsc_rows, sizeof(int) * this->nonzero_count, cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(this->dBcsc_col_starts, this->hBcsc_col_starts, sizeof(int) * (N+1), cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(this->dMask, this->hMask, sizeof(int) * this->K * this->N, cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(this->dPacked_mask_t, this->hPacked_mask_t, sizeof(int) * this->N * this->K_packed, cudaMemcpyHostToDevice));
 
 }
 
@@ -283,6 +308,8 @@ void log_matrix_data(const std::string &fileName, const Problem_InstanceFP16 &pi
     print_matrix(pi.hBt, pi.N, pi.K, fs);
     fs << "Mask:\n";
     print_matrix(pi.hMask, pi.K, pi.N, fs);
+    fs << "Packed_mask_t:\n";
+    print_int_matrix(pi.hPacked_mask_t, pi.N, pi.K_packed, fs);
     fs << "C:\n";
     print_matrix(pi.hC, pi.M, pi.N, fs);
     fs << "Should:\n";
