@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     // std::vector<int> SIZE = {1 << 12};
     std::vector<int> SIZE = {1 << 12};
 
-    bool debug = true;
+    bool debug = false;
     
     float density = 0.25;
     int repeat_times = 50;
@@ -67,7 +67,7 @@ int main(int argc, char **argv)
         if(debug){
             M = 1;
             K = 32;
-            N = 2;
+            N = 32;
         } else {
             M = 1;
             K = size;

@@ -22,6 +22,8 @@ using s32 = int;
 using u16 = unsigned short;
 using s16 = short;
 
+#define WARP_SIZE 32
+
 
 void cudaCheckInternal(cudaError_t error, const char *file, int line)
 {
@@ -192,10 +194,12 @@ Problem_InstanceFP16::Problem_InstanceFP16(int M, int K, int N, float density, i
     cudaCheck(cudaMalloc((void **)&this->dBcsc, sizeof(__half) * this->nonzero_count));
     cudaCheck(cudaMalloc((void **)&this->dBcsc_rows, sizeof(int) * this->nonzero_count));
     cudaCheck(cudaMalloc((void **)&this->dBcsc_col_starts, sizeof(int) * (N+1)));
-
+    cudaCheck(cudaMalloc((void **)&this->dMask, sizeof(int) * this->K* this->N));
+    
     cudaCheck(cudaMemcpy(this->dBcsc, this->hBcsc, sizeof(__half) * this->nonzero_count, cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(this->dBcsc_rows, this->hBcsc_rows, sizeof(int) * this->nonzero_count, cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(this->dBcsc_col_starts, this->hBcsc_col_starts, sizeof(int) * (N+1), cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(this->dMask, this->hMask, sizeof(int) * this->K * this->N, cudaMemcpyHostToDevice));
 
 }
 

@@ -5,6 +5,7 @@
 #include <kernel_2_coalesced_warp_blocks.cuh>
 #include <kernel_3_vectorized.cuh>
 #include <kernel_4_naive_csc.cuh>
+#include <kernel_6_naive_mask.cuh>
 #include <utils.cuh>
 
 void run_kernel_fp16(int kernel_num, Problem_InstanceFP16 &pi, cublasHandle_t handle, bool ref)
@@ -25,6 +26,9 @@ void run_kernel_fp16(int kernel_num, Problem_InstanceFP16 &pi, cublasHandle_t ha
         break;
     case 4:
         run_naive_fp16_csc(pi);
+        break;
+    case 6:
+        run_naive_fp16_mask(pi);
         break;
     default:
         throw std::invalid_argument("Unknown kernel number");
