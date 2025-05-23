@@ -45,10 +45,10 @@ __global__ void vectorized_mem_load(__half* __restrict__ matd, __half* __restric
       float4 matval = mat_row[col];
       float4 vecval = vec[col];
 
-      partial_sum += dot_product(&matval.x, &vecval.x) +
+      partial_sum += (dot_product(&matval.x, &vecval.x) +
                       dot_product(&matval.y, &vecval.y) +
                       dot_product(&matval.z, &vecval.z) +
-                      dot_product(&matval.w, &vecval.w);
+                      dot_product(&matval.w, &vecval.w));
   }
   // block level sum reduction
   // only first thread reads the first location in shared memory
