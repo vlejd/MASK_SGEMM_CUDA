@@ -15,13 +15,23 @@
 
 int main(int argc, char **argv)
 {
-    if (argc != 2)
+    if (argc == 1 || argc > 3)
     {
-        std::cerr << "Please select a kernel" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <kernel_num> [debug_arg]" << std::endl;
+        std::cerr << "kernel_num: 0 - cublas, 1 - naive, 2 - coalesced_warp_block, 3 - vectorized_mem_load, 4 - naive_fp16_csc, 6 - naive_fp16_mask, 7 - packed_fp16_mask_t" << std::endl;
+        std::cerr << "debug_arg: optional argument for debugging" << std::endl;
         exit(EXIT_FAILURE);
     }
 
     int kernel_num = std::stoi(argv[1]);
+    int debug_arg = 0;
+    if (argc == 3)
+    {
+        debug_arg = std::stoi(argv[2]);
+    }
+
+    printf("Debug argument: %d\n", debug_arg);
+    bool debug = debug_arg;
 
     int deviceIdx = 0;
     if (getenv("DEVICE") != NULL)
@@ -49,7 +59,6 @@ int main(int argc, char **argv)
     // std::vector<int> SIZE = {1 << 12};
     std::vector<int> SIZE = {1 << 12};
 
-    bool debug = false;
     
     float density = 0.25;
     int repeat_times = 50;
@@ -59,6 +68,7 @@ int main(int argc, char **argv)
         num_problems = 1;
     }
     int M,N,K;
+    // A @ B = C -> [MxK] @ [KxN] = [MxN]
     Problem_InstanceFP16 *problem_instances[num_problems];
 
     for (int size : SIZE)
@@ -120,7 +130,7 @@ int main(int argc, char **argv)
         long flops = 2 * pi.M * pi.N * pi.K;
         printf(
             "Average elapsed time: (%7.6f) s, performance: (%7.1f) GFLOPS. size: "
-            "(%ldX%ldX%ld).\n\n",
+            "(%dX%dX%d).\n\n",
             elapsed_time / repeat_times,
             (repeat_times * flops * 1e-9) / elapsed_time, pi.M, pi.K, pi.N);
         fflush(stdout);
