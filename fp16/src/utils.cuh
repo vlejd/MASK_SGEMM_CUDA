@@ -345,6 +345,25 @@ __device__ __forceinline__ float warpReduceSum(float val) {
     return val;
 }
 
+//function that computes prefix sum across the warp
+__inline__ __device__ int warp_prefix_sum(int val) {
+    int original_val = val;
+    for (int offset = 1; offset < 32; offset *= 2) {
+        int n = __shfl_up_sync(0xffffffff, val, offset);
+        if (threadIdx.x % 32 >= offset) val += n;
+    }
+    return val-original_val;
+}
+
+
+// function that computes sum across the warp
+__inline__ __device__ int warp_sum(int val) {
+    for (int offset = 16; offset > 0; offset /= 2) {
+        val += __shfl_down_sync(0xffffffff, val, offset);
+    }
+    return val;
+}
+
 
 __device__ __forceinline__ void blockReduceSum(float val, float *smem, int tid, int blockDimX) {
     // 1. do warpReduce sum

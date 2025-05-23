@@ -6,25 +6,6 @@
 #include <cuda_runtime.h>
 #include <utils.cuh>
 
-//function that computes prefix sum across the warp
-__inline__ __device__ int warp_prefix_sum(int val) {
-    int original_val = val;
-    for (int offset = 1; offset < 32; offset *= 2) {
-        int n = __shfl_up_sync(0xffffffff, val, offset);
-        if (threadIdx.x % 32 >= offset) val += n;
-    }
-    return val-original_val;
-}
-
-
-// function that computes sum across the warp
-__inline__ __device__ int warp_sum(int val) {
-    for (int offset = 16; offset > 0; offset /= 2) {
-        val += __shfl_down_sync(0xffffffff, val, offset);
-    }
-    return val;
-}
-
 
 __global__ void packed_fp16_mask_t_warp_over_k(int M, int N, int K, int K_packed, const __half *A,
                                const __half *Bcsc, const int *B_col_statrs, const int *B_packed_mask_t,
@@ -66,7 +47,7 @@ __global__ void packed_fp16_mask_t_warp_over_k(int M, int N, int K, int K_packed
         value_index += ones_count; 
     }
 
-    tmp = warp_sum(tmp);
+    tmp = warpReduceSum(tmp);
     if (lane_id == 0) {
         // reduce the result across the warp
         C[iM * N + iN] = __float2half(tmp);
