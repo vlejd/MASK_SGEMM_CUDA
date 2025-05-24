@@ -15,23 +15,30 @@
 
 int main(int argc, char **argv)
 {
-    if (argc == 1 || argc > 3)
+    if (argc == 1 || argc > 4)
     {
-        std::cerr << "Usage: " << argv[0] << " <kernel_num> [debug_arg]" << std::endl;
-        std::cerr << "kernel_num: 0 - cublas, 1 - naive, 2 - coalesced_warp_block, 3 - vectorized_mem_load, 4 - naive_fp16_csc, 6 - naive_fp16_mask, 7 - packed_fp16_mask_t" << std::endl;
-        std::cerr << "debug_arg: optional argument for debugging" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <kernel_num> [debug_arg] [density_arg]\n";
         exit(EXIT_FAILURE);
     }
 
     int kernel_num = std::stoi(argv[1]);
     int debug_arg = 0;
-    if (argc == 3)
+    if (argc >= 3)
     {
         debug_arg = std::stoi(argv[2]);
     }
 
     printf("Debug argument: %d\n", debug_arg);
     bool debug = debug_arg;
+
+    int density_arg = 25;
+    if(argc >= 4)
+    {
+        density_arg = std::stoi(argv[3]);
+    }
+    float density = float(density_arg) / 100.0f;
+    printf("Density: %d%%\n", density_arg);
+
 
     int deviceIdx = 0;
     if (getenv("DEVICE") != NULL)
@@ -60,7 +67,6 @@ int main(int argc, char **argv)
     std::vector<int> SIZE = {1 << 12};
 
     
-    float density = 0.25;
     int repeat_times = 50;
     int num_problems = 5;
     if (debug){

@@ -9,6 +9,7 @@
 #include <kernel_7_packed_maskt.cuh>
 #include <kernel_8_packed_maskt_warp_over_k.cuh>
 #include <kernel_9_packed_maskt_warp_over_k_with_block.cuh>
+#include <kernel_10_packed_maskt_only_load.cuh>
 #include <utils.cuh>
 
 void run_kernel_fp16(int kernel_num, Problem_InstanceFP16 &pi, cublasHandle_t handle, bool ref)
@@ -41,6 +42,9 @@ void run_kernel_fp16(int kernel_num, Problem_InstanceFP16 &pi, cublasHandle_t ha
         break;
     case 9:
         run_packed_fp16_mask_t_warp_over_k_with_block(pi);
+        break;
+    case 10:
+        run_packed_fp16_mask_t_only_load(pi);
         break;
     default:
         throw std::invalid_argument("Unknown kernel number");
